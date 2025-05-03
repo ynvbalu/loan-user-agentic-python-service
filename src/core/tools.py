@@ -89,16 +89,18 @@ async def transfer_loan(input_str: str) -> Dict[str, Any]:
     - "Move user1's loans to user2"
     - "Send funds from user1 to user2"
     - "Give user1's loans to user2"
+    - "Transfer loan IDs 1,2,3 from user1 to user2"
     The tool will understand the request and make the transfer."""
     try:
         logger.debug(f"transfer_loan called with input type: {type(input_str)}")
         logger.debug(f"transfer_loan raw input: {input_str}")
         
-        # Use LLM to extract usernames from natural language input
-        extraction_prompt = f"""Extract the source and destination usernames from this loan transfer request.
+        # Use LLM to extract usernames and optional loan IDs from natural language input
+        extraction_prompt = f"""Extract the source and destination usernames and optional loan IDs from this loan transfer request.
         Input: {input_str}
-        Return a JSON object with 'fromUsername' and 'toUsername' fields.
-        Example: {{"fromUsername": "user1", "toUsername": "user2"}}
+        Return a JSON object with 'fromUsername', 'toUsername', and optional 'loanIds' fields.
+        Example 1: {{"fromUsername": "user1", "toUsername": "user2"}}
+        Example 2: {{"fromUsername": "user1", "toUsername": "user2", "loanIds": [1, 2, 3]}}
         """
         
         extraction_result = await llm.ainvoke(extraction_prompt)
@@ -112,19 +114,29 @@ async def transfer_loan(input_str: str) -> Dict[str, Any]:
             
         from_username = input_dict.get("fromUsername")
         to_username = input_dict.get("toUsername")
+        loan_ids = input_dict.get("loanIds")
         
         logger.debug(f"Extracted usernames - from: {from_username}, to: {to_username}")
+        logger.debug(f"Extracted loan IDs: {loan_ids}")
         
         if not from_username or not to_username:
             logger.error("Missing required username fields")
             raise ValueError("Could not identify both source and destination users. Please try rephrasing.")
+        
+        # Prepare the request payload
+        payload = {
+            "fromUsername": from_username,
+            "toUsername": to_username
+        }
+        if loan_ids:
+            payload["loanIds"] = loan_ids
         
         async with httpx.AsyncClient() as client:
             logger.info(f"Making API call to transfer loans from {from_username} to {to_username}")
             try:
                 response = await client.post(
                     LOAN_TRANSFER_API_URL,
-                    json={"fromUsername": from_username, "toUsername": to_username},
+                    json=payload,
                     headers={"Content-Type": "application/json"}
                 )
                 logger.debug(f"API Response status: {response.status_code}")
@@ -140,7 +152,8 @@ async def transfer_loan(input_str: str) -> Dict[str, Any]:
                         "status": "success",
                         "message": f"Successfully transferred loans from {from_username} to {to_username}",
                         "fromUsername": from_username,
-                        "toUsername": to_username
+                        "toUsername": to_username,
+                        "loanIds": loan_ids
                     }
                 
                 try:
@@ -155,6 +168,7 @@ async def transfer_loan(input_str: str) -> Dict[str, Any]:
                         "message": f"Successfully transferred loans from {from_username} to {to_username}",
                         "fromUsername": from_username,
                         "toUsername": to_username,
+                        "loanIds": loan_ids,
                         "raw_response": response.text
                     }
                     

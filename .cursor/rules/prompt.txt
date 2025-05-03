@@ -1,0 +1,9 @@
+I want to create a python application using poetry 
+and in this python application want to expose rest api using FASTApi.
+ And this API should take input as string.
+
+I want to create an open api LLM agent using langchain libraries, 
+this llm agent is provided with the string that was received from the fast api. 
+I want to create a tool using langchain library that calls the reasign loans api.
+
+Loan transfer api curl -X POST "http://localhost:8080/api/loans/transfer" -H "Content-Type: application/json" -d '{"fromUsername": "user2", "toUsername": "user1"}' | json_pp

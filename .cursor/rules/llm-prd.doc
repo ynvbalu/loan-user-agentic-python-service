@@ -1,0 +1,73 @@
+# Product Requirements Document (PRD)
+# LLM Agent API for Loan Reassignment
+
+## 1. Overview
+
+### 1.1 Product Description
+A Python-based REST API application that leverages a Language Model (LLM) agent to process and reassign loans based on user requests. The application accepts string inputs via FastAPI endpoints, processes them through a Langchain-powered LLM agent, and interacts with a loan reassignment system.
+
+### 1.2 Purpose
+To automate and enhance the loan reassignment process by utilizing natural language processing capabilities, allowing more intuitive and flexible interaction with the loan system.
+
+### 1.3 Target Users
+- Financial institutions
+- Loan servicing teams
+- Banking application developers
+- Loan administrators
+
+## 2. Technical Architecture
+
+### 2.1 Technology Stack
+- **Python**: Primary programming language
+- **Poetry**: Dependency management and packaging
+- **FastAPI**: REST API framework
+- **Langchain**: LLM integration framework
+- **Open-source LLM**: Base model for the agent
+
+### 2.2 High-Level Architecture
+1. **API Layer**: FastAPI endpoints to receive string inputs
+2. **LLM Agent Layer**: Langchain-powered agent to process requests
+3. **Tools Layer**: Custom Langchain tool for loan reassignment API integration
+4. **External Integration**: Connection to loan reassignment systems
+
+## 3. Functional Requirements
+
+### 3.1 API Endpoints
+
+#### 3.1.1 Process Loan Request Endpoint
+- **Path**: `/api/v1/loan-request`
+- **Method**: POST
+- **Input**: JSON with string request field
+- **Output**: JSON with response and status
+- **Description**: Accepts natural language loan reassignment requests and processes them through the LLM agent
+
+#### 3.1.2 System Status Endpoint
+- **Path**: `/api/v1/status`
+- **Method**: GET
+- **Output**: System health information
+- **Description**: Provides system status, LLM availability, and connection status to loan systems
+
+### 3.2 LLM Agent Capabilities
+
+#### 3.2.1 Natural Language Understanding
+- Parse user requests about loan reassignment
+- Extract key information (loan IDs, customer details, reassignment parameters)
+- Handle ambiguous requests by asking for clarification
+
+#### 3.2.2 Reasoning and Decision Making
+- Validate loan reassignment requests against business rules
+- Suggest alternative actions when requests cannot be fulfilled
+- Provide explanations for decisions
+
+### 3.3 Loan Reassignment Tool
+
+#### 3.3.1 Tool Integration
+- Custom Langchain tool to interface with loan reassignment API
+- Authentication and secure connection handling
+- Request formatting and response parsing
+
+#### 3.3.2 Operations
+- Query loan status
+- Initiate loan reassignment
+- Check eligibility for reassignment
+- Track reassignment status

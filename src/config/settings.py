@@ -2,20 +2,12 @@ import os
 from dotenv import load_dotenv
 import logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
 # Load environment variables
 load_dotenv()
-logger.info("Environment variables loaded")
 
 # API Settings
-API_HOST = "0.0.0.0"
-API_PORT = 8000
+API_HOST = os.getenv("API_HOST", "0.0.0.0")
+API_PORT = int(os.getenv("API_PORT", "8000"))
 LOAN_TRANSFER_API_URL = "http://localhost:8080/api/loans/transfer"
 
 # OpenAI Settings
@@ -24,4 +16,20 @@ OPENAI_TEMPERATURE = 0
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY environment variable is not set") 
+    raise ValueError("OPENAI_API_KEY environment variable is not set")
+
+def setup_logging():
+    """Configure logging for the application."""
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # Set specific log levels for different modules
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    
+    # Log that environment variables are loaded
+    logger = logging.getLogger(__name__)
+    logger.info("Environment variables loaded") 

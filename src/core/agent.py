@@ -2,7 +2,7 @@ from langchain.agents import AgentExecutor
 from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent
 from langchain.prompts import MessagesPlaceholder, HumanMessagePromptTemplate, ChatPromptTemplate, SystemMessagePromptTemplate
 import logging
-from .tools import transfer_loan, get_user_count, check_user_ooo, llm
+from .tools import transfer_loan, get_user_count, check_user_ooo, check_user_loans, llm
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,7 @@ def create_agent():
         1. Transferring loans between users
         2. Getting information about users
         3. Checking if users are Out of Office (OOO)
+        4. Checking if users have loans
         
         For loan transfers, you MUST follow these rules:
         1. ALWAYS check if the source user (user1) is OOO before proceeding with any transfer
@@ -41,6 +42,12 @@ def create_agent():
         - "Check if user1 is out of office"
         - "Is user1 available?"
         - "Get OOO status for user1"
+
+        For loan checks, you can handle questions like:
+        - "Does user1 have any loans?"
+        - "Check if user1 has loans"
+        - "How many loans does user1 have?"
+        - "Get loan count for user1"
         
         When processing transfer requests:
         1. First check the OOO status of the source user
@@ -65,7 +72,7 @@ def create_agent():
     logger.info("Initializing OpenAIFunctionsAgent...")
     agent = OpenAIFunctionsAgent(
         llm=llm,
-        tools=[transfer_loan, get_user_count, check_user_ooo],
+        tools=[transfer_loan, get_user_count, check_user_ooo, check_user_loans],
         prompt=chat_prompt
     )
     logger.info("OpenAIFunctionsAgent initialized successfully")
@@ -73,7 +80,7 @@ def create_agent():
     logger.info("Creating AgentExecutor...")
     agent_executor = AgentExecutor(
         agent=agent,
-        tools=[transfer_loan, get_user_count, check_user_ooo],
+        tools=[transfer_loan, get_user_count, check_user_ooo, check_user_loans],
         verbose=True,
         handle_parsing_errors=True,
         max_iterations=3,

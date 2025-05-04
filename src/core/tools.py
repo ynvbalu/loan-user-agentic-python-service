@@ -7,7 +7,7 @@ import requests
 import json
 import logging
 from fastapi import HTTPException
-from src.config.settings import LOAN_TRANSFER_API_URL, OPENAI_MODEL, OPENAI_TEMPERATURE, OPENAI_API_KEY
+from src.config.settings import LOAN_TRANSFER_API_URL, OPENAI_MODEL, OPENAI_TEMPERATURE, OPENAI_API_KEY, BASE_API_URL
 import traceback
 
 logger = logging.getLogger(__name__)
@@ -54,19 +54,14 @@ class TransferLoanTool(BaseTool):
             if not from_username or not to_username:
                 return "Could not identify both source and destination users. Please try rephrasing."
             
-            # Check OOO status
-            response = requests.get(
-                f"http://localhost:8080/api/users/username/{from_username}/ooo",
-                headers={"Content-Type": "application/json"}
-            )
+            # Check if source user has loans using CheckUserLoansTool
+            loans_check = check_user_loans._run(f"Check if {from_username} has loans")
+            if "has no loans" in loans_check:
+                return f"Cannot transfer loans: User '{from_username}' has no loans to transfer."
             
-            if response.status_code == 404:
-                return f"User '{from_username}' does not exist in the system."
-            
-            response.raise_for_status()
-            is_ooo = response.json() if response.text else False
-            
-            if not is_ooo:
+            # Check OOO status using CheckUserOOOTool
+            ooo_check = check_user_ooo._run(f"Check if {from_username} is OOO")
+            if "is not Out of Office" in ooo_check:
                 return f"I'm sorry, but I cannot proceed with the loan transfer from {from_username} to {to_username} because {from_username} is not Out of Office. Please confirm if {from_username} is currently Out of Office to proceed with the transfer."
             
             # Execute transfer
@@ -111,7 +106,7 @@ class GetUserCountTool(BaseTool):
         try:
             logger.debug("Getting user count...")
             response = requests.get(
-                "http://localhost:8080/api/users/count",
+                f"{BASE_API_URL}/api/users/count",
                 headers={"Content-Type": "application/json"}
             )
             response.raise_for_status()
@@ -170,7 +165,7 @@ class CheckUserOOOTool(BaseTool):
             
             logger.info(f"Checking OOO status for user: {username}")
             response = requests.get(
-                f"http://localhost:8080/api/users/username/{username}/ooo",
+                f"{BASE_API_URL}/api/users/username/{username}/ooo",
                 headers={"Content-Type": "application/json"}
             )
             
@@ -228,7 +223,7 @@ class CheckUserLoansTool(BaseTool):
             
             logger.info(f"Checking loans for user: {username}")
             response = requests.get(
-                f"http://localhost:8080/api/loans/username/{username}/has-loans",
+                f"{BASE_API_URL}/api/loans/username/{username}/has-loans",
                 headers={"Content-Type": "application/json"}
             )
             

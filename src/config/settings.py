@@ -8,7 +8,8 @@ load_dotenv()
 # API Settings
 API_HOST = os.getenv("API_HOST", "0.0.0.0")
 API_PORT = int(os.getenv("API_PORT", "8000"))
-LOAN_TRANSFER_API_URL = "http://localhost:8080/api/loans/transfer"
+BASE_API_URL="http://localhost:8080"
+LOAN_TRANSFER_API_URL = f"{BASE_API_URL}/api/loans/transfer"
 
 # OpenAI Settings
 OPENAI_MODEL = "gpt-3.5-turbo-1106"

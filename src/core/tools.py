@@ -179,4 +179,107 @@ async def transfer_loan(input_str: str) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error in transfer_loan: {str(e)}")
         logger.error(f"Full traceback: {traceback.format_exc()}")
-        raise ValueError(f"Failed to process loan transfer: {str(e)}") 
+        raise ValueError(f"Failed to process loan transfer: {str(e)}")
+
+@tool("check_user_ooo")
+async def check_user_ooo(input_str: str) -> Dict[str, Any]:
+    """Check if a user is Out of Office (OOO).
+    This tool can be used when someone asks about:
+    - Is user1 OOO?
+    - Check if user1 is out of office
+    - Is user1 available?
+    - Get OOO status for user1
+    The tool will return whether the specified user is OOO or not."""
+    try:
+        logger.debug(f"check_user_ooo called with input: {input_str}")
+        
+        # Use LLM to extract username from natural language input
+        extraction_prompt = f"""Extract the username from this OOO status check request.
+        Input: {input_str}
+        Return a JSON object with 'username' field.
+        Example: {{"username": "user1"}}
+        """
+        
+        extraction_result = await llm.ainvoke(extraction_prompt)
+        logger.debug(f"LLM extraction result: {extraction_result}")
+        
+        try:
+            input_dict = json.loads(extraction_result.content)
+        except json.JSONDecodeError:
+            logger.error("Failed to parse LLM response as JSON")
+            raise ValueError("Could not understand the OOO status check request. Please try rephrasing.")
+            
+        username = input_dict.get("username")
+        
+        if not username:
+            logger.error("Missing username field")
+            raise ValueError("Could not identify the user. Please try rephrasing.")
+        
+        async with httpx.AsyncClient() as client:
+            logger.info(f"Checking OOO status for user: {username}")
+            try:
+                response = await client.get(
+                    f"http://localhost:8080/api/users/username/{username}/ooo",
+                    headers={"Content-Type": "application/json"}
+                )
+                logger.debug(f"API Response status: {response.status_code}")
+                logger.debug(f"API Response headers: {response.headers}")
+                logger.debug(f"API Response content: {response.text}")
+                
+                # Handle 404 Not Found specifically
+                if response.status_code == 404:
+                    return {
+                        "status": "error",
+                        "message": f"User '{username}' does not exist in the system.",
+                        "username": username,
+                        "error_type": "user_not_found"
+                    }
+                
+                response.raise_for_status()
+                
+                try:
+                    result = response.json()
+                    is_ooo = bool(result)
+                    status_message = "is" if is_ooo else "is not"
+                    return {
+                        "status": "success",
+                        "message": f"User {username} {status_message} Out of Office",
+                        "username": username,
+                        "is_ooo": is_ooo
+                    }
+                except json.JSONDecodeError as json_err:
+                    # Try to parse as boolean if JSON parsing fails
+                    try:
+                        is_ooo = response.text.lower() == "true"
+                        status_message = "is" if is_ooo else "is not"
+                        return {
+                            "status": "success",
+                            "message": f"User {username} {status_message} Out of Office",
+                            "username": username,
+                            "is_ooo": is_ooo
+                        }
+                    except ValueError:
+                        logger.warning(f"Could not parse API response as JSON or boolean: {json_err}")
+                        return {
+                            "status": "success",
+                            "message": f"OOO status for user {username}: {response.text}",
+                            "username": username,
+                            "raw_response": response.text
+                        }
+                    
+            except httpx.HTTPError as http_error:
+                logger.error(f"HTTP error occurred: {str(http_error)}")
+                logger.error(f"Response content: {http_error.response.text if hasattr(http_error, 'response') else 'No response content'}")
+                # Handle 404 Not Found specifically
+                if hasattr(http_error, 'response') and http_error.response.status_code == 404:
+                    return {
+                        "status": "error",
+                        "message": f"User '{username}' does not exist in the system.",
+                        "username": username,
+                        "error_type": "user_not_found"
+                    }
+                raise ValueError(f"Failed to check OOO status: {str(http_error)}")
+    except Exception as e:
+        logger.error(f"Error in check_user_ooo: {str(e)}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise ValueError(f"Failed to check OOO status: {str(e)}") 

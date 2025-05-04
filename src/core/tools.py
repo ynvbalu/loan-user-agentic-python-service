@@ -1,6 +1,8 @@
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
-from typing import Dict, Any
+from langchain.chains import SequentialChain, LLMChain
+from langchain.prompts import PromptTemplate
+from typing import Dict, Any, List
 import httpx
 import json
 import logging
@@ -16,6 +18,155 @@ llm = ChatOpenAI(
     temperature=OPENAI_TEMPERATURE,
     api_key=OPENAI_API_KEY
 )
+
+# Define the chain of tools for loan transfer
+class LoanTransferChain:
+    def __init__(self):
+        # Step 1: Extract usernames and loan IDs
+        self.extract_info_chain = LLMChain(
+            llm=llm,
+            prompt=PromptTemplate(
+                input_variables=["input"],
+                template="""Extract the source and destination usernames and optional loan IDs from this loan transfer request.
+                Input: {input}
+                Return a JSON object with 'fromUsername', 'toUsername', and optional 'loanIds' fields.
+                Example 1: {{"fromUsername": "user1", "toUsername": "user2"}}
+                Example 2: {{"fromUsername": "user1", "toUsername": "user2", "loanIds": [1, 2, 3]}}
+                """
+            ),
+            output_key="extracted_info"
+        )
+        
+        # Step 2: Check OOO status
+        self.check_ooo_chain = LLMChain(
+            llm=llm,
+            prompt=PromptTemplate(
+                input_variables=["extracted_info"],
+                template="""Check if the user is Out of Office.
+                Extract the fromUsername from this JSON: {extracted_info}
+                Return a JSON object with 'is_ooo' field.
+                Example: {{"is_ooo": true}}
+                """
+            ),
+            output_key="ooo_status"
+        )
+        
+        # Step 3: Execute transfer
+        self.transfer_chain = LLMChain(
+            llm=llm,
+            prompt=PromptTemplate(
+                input_variables=["extracted_info", "ooo_status"],
+                template="""Execute the loan transfer if the user is OOO.
+                User Info: {extracted_info}
+                OOO Status: {ooo_status}
+                Return a JSON object with the transfer result.
+                """
+            ),
+            output_key="transfer_result"
+        )
+        
+        # Combine all chains
+        self.chain = SequentialChain(
+            chains=[
+                self.extract_info_chain,
+                self.check_ooo_chain,
+                self.transfer_chain
+            ],
+            input_variables=["input"],
+            output_variables=["extracted_info", "ooo_status", "transfer_result"],
+            verbose=True
+        )
+
+    async def execute(self, input_str: str) -> Dict[str, Any]:
+        try:
+            # Execute the chain
+            chain_result = await self.chain.ainvoke({"input": input_str})
+            
+            # Parse the extracted info
+            try:
+                input_dict = json.loads(chain_result["extracted_info"])
+            except json.JSONDecodeError:
+                raise ValueError("Could not understand the loan transfer request. Please try rephrasing.")
+            
+            from_username = input_dict.get("fromUsername")
+            to_username = input_dict.get("toUsername")
+            loan_ids = input_dict.get("loanIds")
+            
+            if not from_username or not to_username:
+                raise ValueError("Could not identify both source and destination users. Please try rephrasing.")
+            
+            # Parse OOO status
+            try:
+                ooo_status = json.loads(chain_result["ooo_status"])
+                if not ooo_status.get("is_ooo", False):
+                    return {
+                        "status": "error",
+                        "message": f"Cannot transfer loans: User {from_username} is not Out of Office. Transfers are only allowed when the source user is OOO.",
+                        "username": from_username,
+                        "is_ooo": False,
+                        "error_type": "user_not_ooo"
+                    }
+            except json.JSONDecodeError:
+                raise ValueError("Could not verify OOO status. Please try again.")
+            
+            # Execute transfer
+            payload = {
+                "fromUsername": from_username,
+                "toUsername": to_username
+            }
+            if loan_ids:
+                payload["loanIds"] = loan_ids
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    LOAN_TRANSFER_API_URL,
+                    json=payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                
+                response.raise_for_status()
+                
+                if not response.text:
+                    return {
+                        "status": "success",
+                        "message": f"Successfully transferred loans from {from_username} to {to_username}",
+                        "fromUsername": from_username,
+                        "toUsername": to_username,
+                        "loanIds": loan_ids
+                    }
+                
+                try:
+                    return response.json()
+                except json.JSONDecodeError:
+                    return {
+                        "status": "success",
+                        "message": f"Successfully transferred loans from {from_username} to {to_username}",
+                        "fromUsername": from_username,
+                        "toUsername": to_username,
+                        "loanIds": loan_ids,
+                        "raw_response": response.text
+                    }
+                    
+        except Exception as e:
+            logger.error(f"Error in loan transfer chain: {str(e)}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
+            raise ValueError(f"Failed to process loan transfer: {str(e)}")
+
+# Initialize the chain
+loan_transfer_chain = LoanTransferChain()
+
+@tool("transfer_loan")
+async def transfer_loan(input_str: str) -> Dict[str, Any]:
+    """Transfer loans between users. The input can be in natural language.
+    Examples:
+    - "Transfer loans from user1 to user2"
+    - "Move user1's loans to user2"
+    - "Send funds from user1 to user2"
+    - "Give user1's loans to user2"
+    - "Transfer loan IDs 1,2,3 from user1 to user2"
+    The tool will understand the request and make the transfer.
+    IMPORTANT: The transfer will only proceed if the source user (user1) is confirmed to be OOO."""
+    return await loan_transfer_chain.execute(input_str)
 
 @tool("get_user_count")
 async def get_user_count(input_str: str = "") -> Dict[str, Any]:
@@ -80,106 +231,6 @@ async def get_user_count(input_str: str = "") -> Dict[str, Any]:
         logger.error(f"Error in get_user_count: {str(e)}")
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise ValueError(f"Failed to get user count: {str(e)}")
-
-@tool("transfer_loan")
-async def transfer_loan(input_str: str) -> Dict[str, Any]:
-    """Transfer loans between users. The input can be in natural language.
-    Examples:
-    - "Transfer loans from user1 to user2"
-    - "Move user1's loans to user2"
-    - "Send funds from user1 to user2"
-    - "Give user1's loans to user2"
-    - "Transfer loan IDs 1,2,3 from user1 to user2"
-    The tool will understand the request and make the transfer."""
-    try:
-        logger.debug(f"transfer_loan called with input type: {type(input_str)}")
-        logger.debug(f"transfer_loan raw input: {input_str}")
-        
-        # Use LLM to extract usernames and optional loan IDs from natural language input
-        extraction_prompt = f"""Extract the source and destination usernames and optional loan IDs from this loan transfer request.
-        Input: {input_str}
-        Return a JSON object with 'fromUsername', 'toUsername', and optional 'loanIds' fields.
-        Example 1: {{"fromUsername": "user1", "toUsername": "user2"}}
-        Example 2: {{"fromUsername": "user1", "toUsername": "user2", "loanIds": [1, 2, 3]}}
-        """
-        
-        extraction_result = await llm.ainvoke(extraction_prompt)
-        logger.debug(f"LLM extraction result: {extraction_result}")
-        
-        try:
-            input_dict = json.loads(extraction_result.content)
-        except json.JSONDecodeError:
-            logger.error("Failed to parse LLM response as JSON")
-            raise ValueError("Could not understand the loan transfer request. Please try rephrasing.")
-            
-        from_username = input_dict.get("fromUsername")
-        to_username = input_dict.get("toUsername")
-        loan_ids = input_dict.get("loanIds")
-        
-        logger.debug(f"Extracted usernames - from: {from_username}, to: {to_username}")
-        logger.debug(f"Extracted loan IDs: {loan_ids}")
-        
-        if not from_username or not to_username:
-            logger.error("Missing required username fields")
-            raise ValueError("Could not identify both source and destination users. Please try rephrasing.")
-        
-        # Prepare the request payload
-        payload = {
-            "fromUsername": from_username,
-            "toUsername": to_username
-        }
-        if loan_ids:
-            payload["loanIds"] = loan_ids
-        
-        async with httpx.AsyncClient() as client:
-            logger.info(f"Making API call to transfer loans from {from_username} to {to_username}")
-            try:
-                response = await client.post(
-                    LOAN_TRANSFER_API_URL,
-                    json=payload,
-                    headers={"Content-Type": "application/json"}
-                )
-                logger.debug(f"API Response status: {response.status_code}")
-                logger.debug(f"API Response headers: {response.headers}")
-                logger.debug(f"API Response content: {response.text}")
-                
-                response.raise_for_status()
-                
-                # Handle empty response
-                if not response.text:
-                    logger.info("Received empty response from API, assuming success")
-                    return {
-                        "status": "success",
-                        "message": f"Successfully transferred loans from {from_username} to {to_username}",
-                        "fromUsername": from_username,
-                        "toUsername": to_username,
-                        "loanIds": loan_ids
-                    }
-                
-                try:
-                    result = response.json()
-                    logger.info(f"Transfer successful: {result}")
-                    return result
-                except json.JSONDecodeError as json_err:
-                    logger.warning(f"Could not parse API response as JSON: {json_err}")
-                    # Return a success message even if response is not JSON
-                    return {
-                        "status": "success",
-                        "message": f"Successfully transferred loans from {from_username} to {to_username}",
-                        "fromUsername": from_username,
-                        "toUsername": to_username,
-                        "loanIds": loan_ids,
-                        "raw_response": response.text
-                    }
-                    
-            except httpx.HTTPError as http_error:
-                logger.error(f"HTTP error occurred: {str(http_error)}")
-                logger.error(f"Response content: {http_error.response.text if hasattr(http_error, 'response') else 'No response content'}")
-                raise ValueError(f"Failed to transfer loans: {str(http_error)}")
-    except Exception as e:
-        logger.error(f"Error in transfer_loan: {str(e)}")
-        logger.error(f"Full traceback: {traceback.format_exc()}")
-        raise ValueError(f"Failed to process loan transfer: {str(e)}")
 
 @tool("check_user_ooo")
 async def check_user_ooo(input_str: str) -> Dict[str, Any]:

@@ -66,11 +66,15 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    logger.info("Starting Loan User Agentic Service...")
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
-    ) 
+    try:
+        logger.info("Starting Loan User Agentic Service...")
+        uvicorn.run(
+            "src.main:app",
+            host="0.0.0.0",
+            port=8000,
+            reload=False,  # Disable reload to prevent hanging
+            log_level="info"
+        )
+    except Exception as e:
+        logger.error(f"Failed to start service: {str(e)}")
+        raise 

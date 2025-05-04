@@ -15,7 +15,16 @@ def create_agent():
         2. Getting information about users
         3. Checking if users are Out of Office (OOO)
         
-        For loan transfers, you can understand various ways of expressing the same request, such as:
+        For loan transfers, you MUST follow these rules:
+        1. ALWAYS check if the source user (user1) is OOO before proceeding with any transfer
+        2. Only proceed with the transfer if the source user is confirmed to be OOO
+        3. If the source user is not OOO, explain why the transfer cannot proceed
+        4. Consider the following scenarios:
+           - If user1 is OOO: Proceed with transfer to user2
+           - If user1 is not OOO: Reject the transfer and explain why
+           - If OOO status is unclear: Ask for clarification
+        
+        You can understand various ways of expressing transfer requests, such as:
         - "Transfer loans from user1 to user2"
         - "Move user1's loans to user2"
         - "Send funds from user1 to user2"
@@ -32,6 +41,12 @@ def create_agent():
         - "Check if user1 is out of office"
         - "Is user1 available?"
         - "Get OOO status for user1"
+        
+        When processing transfer requests:
+        1. First check the OOO status of the source user
+        2. Only proceed with the transfer if OOO status is confirmed
+        3. Provide clear explanations for your decisions
+        4. Handle edge cases gracefully
         
         DO NOT try to format or modify the input text. Pass it directly to the appropriate tool.
         The tools will handle understanding the request and providing the information."""

@@ -1,0 +1,13 @@
+Chat prompts:
+
+Is ALEX out of office?
+Does ALEX have any loans?
+since alex is OOO, move loans from ALEX to LINDA
+
+assign loans from LINDA to BRIAN
+then make LINDA out    of  office.
+move funds from LINDA  to        BRIAN
+if you don't mind can you please check - how many loans now brian has, thanks.
+move loans from alex to brian.
+is SAM available?
+

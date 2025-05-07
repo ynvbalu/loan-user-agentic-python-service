@@ -1,0 +1,6 @@
+
+ ## AI Components
+LangChain for agent framework
+LangChain's OpenAIFunctionsAgent for structured tool execution
+GPT-3.5-turbo-1106 for natural language processing
+Custom tools for business logic

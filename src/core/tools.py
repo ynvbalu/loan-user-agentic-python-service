@@ -1,13 +1,11 @@
 from langchain.tools import BaseTool
 from langchain_openai import ChatOpenAI
-from langchain.chains import SequentialChain, LLMChain
-from langchain.prompts import PromptTemplate
-from typing import Dict, Any, List, Optional
 import requests
 import json
 import logging
-from fastapi import HTTPException
-from src.config.settings import LOAN_TRANSFER_API_URL, OPENAI_MODEL, OPENAI_TEMPERATURE, OPENAI_API_KEY, BASE_API_URL
+
+from src.config.settings import (LOAN_TRANSFER_API_URL, OPENAI_MODEL, OPENAI_TEMPERATURE,
+                                 OPENAI_API_KEY, BASE_API_URL)
 import traceback
 
 logger = logging.getLogger(__name__)
@@ -34,7 +32,8 @@ class TransferLoanTool(BaseTool):
     def _run(self, input_str: str) -> str:
         try:
             # Extract usernames using LLM
-            extraction_prompt = f"""Extract the source and destination usernames from this loan transfer request.
+            extraction_prompt = f"""Extract the source and destination usernames from this loan 
+            transfer request.
             Input: {input_str}
             Return a JSON object with 'fromUsername' and 'toUsername' fields.
             Example: {{"fromUsername": "user1", "toUsername": "user2"}}

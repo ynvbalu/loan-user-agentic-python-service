@@ -1,6 +1,7 @@
 from langchain.agents import AgentExecutor
 from langchain.agents.openai_functions_agent.base import OpenAIFunctionsAgent
-from langchain.prompts import MessagesPlaceholder, HumanMessagePromptTemplate, ChatPromptTemplate, SystemMessagePromptTemplate
+from langchain.prompts import (MessagesPlaceholder, HumanMessagePromptTemplate,
+                               ChatPromptTemplate, SystemMessagePromptTemplate)
 import logging
 from .tools import transfer_loan, get_user_count, check_user_ooo, check_user_loans, set_user_ooo, llm
 
@@ -10,7 +11,8 @@ def create_agent():
     """Create and configure the LangChain agent."""
     logger.info("Setting up agent prompt...")
     system_message = SystemMessagePromptTemplate.from_template(
-        """You are a helpful assistant that helps with loan transfers and user information. You can understand natural language requests for:
+        """You are a helpful assistant that helps with loan transfers and user information. 
+        You can understand natural language requests for:
         1. Transferring loans between users
         2. Getting information about users
         3. Checking if users are Out of Office (OOO)
@@ -65,9 +67,13 @@ def create_agent():
         DO NOT try to format or modify the input text. Pass it directly to the appropriate tool.
         The tools will handle understanding the request and providing the information."""
     )
+    logger.info(f"system_message: {system_message}")
 
     human_message = HumanMessagePromptTemplate.from_template("{input}")
+    logger.info(f"human_message: {human_message}")
+
     agent_scratchpad = MessagesPlaceholder(variable_name="agent_scratchpad")
+    logger.info(f"agent_scratchpad: {agent_scratchpad}")
 
     chat_prompt = ChatPromptTemplate.from_messages([
         system_message,
@@ -75,24 +81,30 @@ def create_agent():
         agent_scratchpad
     ])
     logger.info("Agent prompt setup completed")
+    logger.info(f"chat_prompt: {chat_prompt}")
+
+    tools_list = [transfer_loan, get_user_count, check_user_ooo, check_user_loans, set_user_ooo]
+    logger.info(f"Tools being used: {[tool.name for tool in tools_list]}")
 
     logger.info("Initializing OpenAIFunctionsAgent...")
     agent = OpenAIFunctionsAgent(
         llm=llm,
-        tools=[transfer_loan, get_user_count, check_user_ooo, check_user_loans, set_user_ooo],
+        tools=tools_list,
         prompt=chat_prompt
     )
     logger.info("OpenAIFunctionsAgent initialized successfully")
+    logger.info(f"agent: {agent}")
 
     logger.info("Creating AgentExecutor...")
     agent_executor = AgentExecutor(
         agent=agent,
-        tools=[transfer_loan, get_user_count, check_user_ooo, check_user_loans, set_user_ooo],
-        verbose=True,
+        tools=tools_list,
         handle_parsing_errors=True,
         max_iterations=3,
+        verbose=True,
         return_direct=True
     )
     logger.info("AgentExecutor created successfully")
+    logger.info(f"agent_executor: {agent_executor}")
 
     return agent_executor 

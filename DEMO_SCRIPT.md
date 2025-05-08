@@ -1,79 +1,88 @@
-# Loan Management System - Demo Script (2 Minutes)
+# Loan Management System - 2-Minute Demo Script
 
 ## Introduction (15 seconds)
-"Today, I'll demonstrate our AI-powered Loan Management System that uses GPT-3.5-turbo-1106 with LangChain to provide a natural language interface for loan operations. The system can handle loan transfers, user information, and OOO status management through simple conversation."
+"Today, I'll demonstrate our AI-powered loan management system that automatically handles loan transfers when officers go Out of Office. The system uses natural language processing to make this process seamless and efficient."
 
 ## Technology Overview (30 seconds)
-"The system combines:
-- GPT-3.5-turbo-1106 for natural language understanding
-- LangChain's OpenAIFunctionsAgent for structured tool execution
-- Five custom tools for specific operations:
-  1. Loan transfers
-  2. User count
-  3. OOO status checks
-  4. Loan verification
-  5. OOO status updates"
+"Our system is built with:
+- Frontend: React and TypeScript for a modern UI
+- Backend: Spring Boot for robust API handling
+- AI Service: Python with LangChain and GPT-3.5-turbo-1106
+- Database: H2 for data persistence for POC"
 
 ## Demo Flow (45 seconds)
 
-### 1. User Information Check (15 seconds)
-"Let's start by checking how many users we have in the system."
-```
-User: "How many users are there?"
-System: "There are 150 users in the system."
-```
+### 1. Show Chatbot Interface
+"Let's look at our AI chatbot interface. Here, users can interact naturally with the system."
 
-### 2. OOO Status Check (15 seconds)
-"Now, let's check if a user is out of office."
-```
-User: "Is ALEX out of office?"
-System: "User ALEX is Out of Office."
-```
+### 2. Demonstrate Loan Transfer
+"Let's transfer loans from ALEX to BRIAN:
+1. Type: 'Transfer loans from ALEX to BRIAN'
+2. Watch the AI:
+   - Check ALEX's OOO status
+   - Verify loan ownership
+   - Execute the transfer
+3. See the confirmation message"
 
-### 3. Loan Transfer (15 seconds)
-"Let's transfer ALEX's loans to BRIAN."
-```
-User: "Transfer loans from ALEX to BRIAN"
-System: "Successfully transferred 2 loans from ALEX to BRIAN."
-```
-
-## Key Points to Remember
-1. Natural language understanding
-2. Business rule enforcement
-3. Error handling
-4. User-friendly responses
-
-## Technical Details
-- Agent: OpenAIFunctionsAgent with GPT-3.5-turbo-1106
-- Tools: Custom API tools for loan management
-- Validation: OOO status and loan ownership checks
-- Security: Input validation and error handling
-
-## Demo Tips
-1. Speak clearly and at a moderate pace
-2. Highlight the natural language understanding
-3. Emphasize the business rule enforcement
-4. Show error handling if time permits
+### 3. Show Key Components
+"Behind this simple interaction, our system uses:
+- AI Agent for decision making
+- Tools for:
+  - OOO status verification
+  - Loan transfer validation
+  - User information retrieval"
 
 ## Conclusion (30 seconds)
-"This system demonstrates how AI can be used to create a user-friendly interface for complex loan management operations. The combination of GPT-3.5-turbo-1106 and LangChain provides a powerful yet safe way to handle sensitive financial operations through natural language."
+"This system demonstrates how AI can streamline complex business processes. The natural language interface makes it user-friendly, while the robust backend ensures data integrity and security."
 
 ## Demo Checklist
-- [ ] Introduction
-- [ ] Technology overview
-- [ ] User count check
-- [ ] OOO status check
-- [ ] Loan transfer
-- [ ] Conclusion
+- [ ] Open the application
+- [ ] Show the chatbot interface
+- [ ] Demonstrate a loan transfer
+- [ ] Show the confirmation
+- [ ] Highlight the technologies used
 
-## Time Management
-- 0:00 - 0:15: Introduction
-- 0:15 - 0:45: Technology Overview
-- 0:45 - 1:30: Demo Flow
-- 1:30 - 2:00: Conclusion
+## Key Points to Remember
+1. Keep the demo focused on the main flow
+2. Emphasize the natural language interaction
+3. Highlight the AI capabilities
+4. Show the real-time response
+5. Mention the security aspects
 
-## Backup Scenarios
-If time permits, demonstrate:
-1. Error handling (user not OOO)
-2. No loans to transfer
-3. User doesn't exist 
+## Technical Details (For Reference)
+
+### AI Agent Code
+```python
+def create_agent():
+    system_message = """You are a helpful assistant that helps with loan transfers.
+    You can understand natural language requests for:
+    1. Transferring loans between users
+    2. Checking OOO status
+    3. Validating transfers"""
+    
+    agent = OpenAIFunctionsAgent(
+        llm=llm,
+        tools=[transfer_loan, check_user_ooo, check_user_loans],
+        prompt=chat_prompt
+    )
+```
+
+### Key Tools
+```python
+@api_tool("Transfer loans between users")
+def transfer_loan(self, from_username: str, to_username: str):
+    # Check OOO status
+    source_user = self.check_user_ooo(from_username)
+    if not source_user.ooo_status:
+        return "Cannot transfer: User is not OOO"
+    
+    # Execute transfer
+    return "Transfer successful"
+```
+
+## Demo Tips
+1. Have the application ready before starting
+2. Use a pre-configured test case
+3. Keep the explanation concise
+4. Focus on the user experience
+5. Be ready to answer questions about the technology stack 

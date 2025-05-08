@@ -1,12 +1,47 @@
-from fastapi import FastAPI
+import logging
+import sys
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes import router
 from src.config.settings import setup_logging
-import logging
+from pydantic import BaseModel
+from typing import Dict, Any
+from .core.agent import create_agent
+
+# Configure root logger
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('loan_service_debug.log')
+    ]
+)
+
+# Configure specific loggers
+loggers = [
+    'src.core.agent',
+    'src.core.tools',
+    'src.api.routes',
+    'uvicorn',
+    'fastapi'
+]
+
+# Set up loggers
+for logger_name in loggers:
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = True
+
+# Filter out httpcore trace logs
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+logging.getLogger('httpx').setLevel(logging.WARNING)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # Setup logging
 setup_logging()
-logger = logging.getLogger(__name__)
 
 # Create FastAPI app with enhanced documentation
 app = FastAPI(
@@ -62,6 +97,7 @@ async def health_check():
     Returns:
         dict: A simple status message
     """
+    logger.debug("Health check endpoint called")
     return {"status": "healthy", "message": "Service is running"}
 
 if __name__ == "__main__":
@@ -73,8 +109,8 @@ if __name__ == "__main__":
             host="0.0.0.0",
             port=8000,
             reload=False,  # Disable reload to prevent hanging
-            log_level="info"
+            log_level="debug"  # Changed to debug level
         )
     except Exception as e:
-        logger.error(f"Failed to start service: {str(e)}")
+        logger.error(f"Failed to start service: {str(e)}", exc_info=True)
         raise 

@@ -3,19 +3,24 @@ from langchain_openai import ChatOpenAI
 import requests
 import json
 import logging
+import sys
+from typing import List, Dict, Any
 
 from src.config.settings import (LOAN_TRANSFER_API_URL, OPENAI_MODEL, OPENAI_TEMPERATURE,
                                  OPENAI_API_KEY, BASE_API_URL)
 import traceback
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # Initialize OpenAI model
+logger.debug("Initializing OpenAI model...")
 llm = ChatOpenAI(
     model=OPENAI_MODEL,
     temperature=OPENAI_TEMPERATURE,
     api_key=OPENAI_API_KEY
 )
+logger.debug(f"OpenAI model initialized with model={OPENAI_MODEL}, temperature={OPENAI_TEMPERATURE}")
 
 class TransferLoanTool(BaseTool):
     name = "transfer_loan"
@@ -31,6 +36,8 @@ class TransferLoanTool(BaseTool):
 
     def _run(self, input_str: str) -> str:
         try:
+            logger.debug(f"TransferLoanTool called with input: {input_str}")
+            
             # Extract usernames using LLM
             extraction_prompt = f"""Extract the source and destination usernames from this loan 
             transfer request.
@@ -39,28 +46,42 @@ class TransferLoanTool(BaseTool):
             Example: {{"fromUsername": "user1", "toUsername": "user2"}}
             """
             
+            logger.debug("Calling LLM for username extraction...")
             extraction_result = llm.invoke(extraction_prompt)
             logger.debug(f"LLM extraction result: {extraction_result}")
             
             try:
                 input_dict = json.loads(extraction_result.content)
-            except json.JSONDecodeError:
+                logger.debug(f"Parsed input dictionary: {input_dict}")
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse LLM response: {e}")
                 return "Could not understand the loan transfer request. Please try rephrasing."
                 
             from_username = input_dict.get("fromUsername", "").lower()
             to_username = input_dict.get("toUsername", "").lower()
             
+            logger.debug(f"Extracted usernames - from: {from_username}, to: {to_username}")
+            
             if not from_username or not to_username:
+                logger.warning("Missing username(s) in extraction")
                 return "Could not identify both source and destination users. Please try rephrasing."
             
-            # Check if source user has loans using CheckUserLoansTool
+            # Check if source user has loans
+            logger.debug(f"Checking loans for user: {from_username}")
             loans_check = check_user_loans._run(f"Check if {from_username} has loans")
+            logger.debug(f"Loans check result: {loans_check}")
+            
             if "has no loans" in loans_check:
+                logger.info(f"Transfer rejected: User '{from_username}' has no loans")
                 return f"Cannot transfer loans: User '{from_username}' has no loans to transfer."
             
-            # Check OOO status using CheckUserOOOTool
+            # Check OOO status
+            logger.debug(f"Checking OOO status for user: {from_username}")
             ooo_check = check_user_ooo._run(f"Check if {from_username} is OOO")
+            logger.debug(f"OOO check result: {ooo_check}")
+            
             if "is not Out of Office" in ooo_check:
+                logger.info(f"Transfer rejected: User '{from_username}' is not OOO")
                 return f"I'm sorry, but I cannot proceed with the loan transfer from {from_username} to {to_username} because {from_username} is not Out of Office. Please confirm if {from_username} is currently Out of Office to proceed with the transfer."
             
             # Execute transfer
@@ -69,6 +90,7 @@ class TransferLoanTool(BaseTool):
                 "toUsername": to_username
             }
             
+            logger.debug(f"Sending transfer request with payload: {payload}")
             response = requests.post(
                 LOAN_TRANSFER_API_URL,
                 json=payload,
@@ -76,19 +98,22 @@ class TransferLoanTool(BaseTool):
             )
             
             response.raise_for_status()
+            logger.debug(f"Transfer API response status: {response.status_code}")
             
             if not response.text:
+                logger.info(f"Transfer successful: {from_username} to {to_username}")
                 return f"Successfully transferred loans from {from_username} to {to_username}"
             
             try:
                 result = response.json()
+                logger.debug(f"Transfer API response: {result}")
                 return f"Successfully transferred loans from {from_username} to {to_username}"
             except json.JSONDecodeError:
+                logger.debug(f"Transfer API raw response: {response.text}")
                 return f"Successfully transferred loans from {from_username} to {to_username}"
                 
         except Exception as e:
-            logger.error(f"Error in transfer_loan: {str(e)}")
-            logger.error(f"Full traceback: {traceback.format_exc()}")
+            logger.error(f"Error in transfer_loan: {str(e)}", exc_info=True)
             return f"Failed to transfer loans: {str(e)}"
 
 class GetUserCountTool(BaseTool):
@@ -330,8 +355,10 @@ class SetUserOOOTool(BaseTool):
             raise ValueError(f"Failed to set OOO status: {str(e)}")
 
 # Initialize tools
+logger.debug("Initializing tools...")
 transfer_loan = TransferLoanTool()
 get_user_count = GetUserCountTool()
 check_user_ooo = CheckUserOOOTool()
 check_user_loans = CheckUserLoansTool()
-set_user_ooo = SetUserOOOTool() 
+set_user_ooo = SetUserOOOTool()
+logger.debug("All tools initialized successfully") 

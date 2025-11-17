@@ -52,7 +52,7 @@ class LoanTransferResponse(BaseModel):
         example="Successfully transferred loans from user1 to user2"
     )
     details: Optional[Dict[str, Any]] = Field(
-        None,
+        default=None,
         description="Additional details about the operation if available"
     )
 
@@ -83,7 +83,7 @@ class UserCountResponse(BaseModel):
         example="There are 5 users in the system"
     )
     count: Optional[int] = Field(
-        None,
+        default=None,
         description="Total number of users in the system",
         example=5
     )
@@ -96,4 +96,4 @@ class UserCountResponse(BaseModel):
                 "count": 5
             }
         }
-    } 
+    }
